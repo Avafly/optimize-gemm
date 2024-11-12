@@ -8,7 +8,7 @@ constexpr int KERNEL_ROW = 12;
 constexpr int KERNEL_COL = 8;
 constexpr int BLOCK_M = 384;
 constexpr int BLOCK_N = 96;
-constexpr int BLOCK_K = 48;
+constexpr int BLOCK_K = 64;
 
 #if !defined(M_SIZE) || !defined(N_SIZE) || !defined(K_SIZE)
     #define M_SIZE      1536
