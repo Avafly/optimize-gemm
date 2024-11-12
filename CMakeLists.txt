@@ -28,10 +28,6 @@ target_link_libraries(mm_kernel12x8 OpenMP::OpenMP_CXX)
 add_executable(mm_optimize mm_optimize.cpp)
 target_link_libraries(mm_optimize OpenMP::OpenMP_CXX)
 
-# test
-add_executable(mm_test mm_test.cpp)
-target_link_libraries(mm_test OpenMP::OpenMP_CXX)
-
 set(ENV_ROOT "/your/envs")
 # openblas
 set(OPENBLAS_INCLUDE_DIR "${ENV_ROOT}/openblas/include")
