@@ -1,6 +1,6 @@
 # optimize-gemm
 
-[GEMM](https://en.wikipedia.org/wiki/General_matrix_multiply) is crucial in AI inference, since it is the core of computations in many layers such as convolution and Transformer. This repo shows how I optimized GEMM by methods like SIMD registers, blocking/tiling, packing, parallel computing to achieve over **170x** speed up (0.1747 -> 29.8623 GFLOPS) on Raspberry Pi 4 Model B (4GB RAM) using CPU only, reaches the performance level of high-performance linear algebra libraries.
+[GEMM](https://en.wikipedia.org/wiki/General_matrix_multiply) is crucial in AI inference, since it is the core of computations in many layers such as convolution and Transformer. This repo shows how I optimized GEMM by methods like SIMD registers, blocking/tiling, packing, parallel computing to achieve over **170x** speed up (0.1747 -> 29.8623 GFLOPS) on Raspberry Pi 4 Model B (4GB RAM) using CPU only, reached the performance level of high-performance linear algebra libraries.
 
 All matrices are row-major and initialized with values from text files, and thus the results should be constant. Once the computation is complete, the sum and elements will print for correctness checks.
 
@@ -41,7 +41,7 @@ The next step is selecting a suitable kernel size. [Cortex-A72](https://develope
 [mm_kernel12x8.cpp](https://github.com/Avafly/optimize-gemm/blob/main/mm_kernel12x8.cpp) improved performance to 5.5944 GFLOPS with elapsed time of 850.19 ms.
 
 
-### 5. Further optimizations
+### 5. Further
 
 The kernel efficiently utilizes registers, but cache usage remained suboptimal. For large matrices, FLOPS [drop significantly](https://en.algorithmica.org/hpc/algorithms/matmul/) due to frequent memory access. This can be addressed with blocking/tiling, which improves cache hit rates by enhancing data locality. Additionally, blocking supports parallel computation very well. Parallelization improves cache and neon register utilization since each core has its own cache and registers. Furthermore, packing the blocks before computation also can enhance data locality.
 
@@ -55,13 +55,13 @@ After completing above optimizations, [mm_optimize.cpp](https://github.com/Avafl
 
 ## Some Linear Algebra Libraries
 
-Most linear algebra libraries provide gemm, and I tested against some well-known libraries: [eigen](https://eigen.tuxfamily.org/), [openblas](https://www.openblas.net/), and [gsl](https://www.gnu.org/software/gsl/).
+Most linear algebra libraries provide gemm supports, and I tested against some well-known libraries: [eigen](https://eigen.tuxfamily.org/), [openblas](https://www.openblas.net/), and [gsl](https://www.gnu.org/software/gsl/).
 
-|          | Elapsed Time (x4) | GFLOPS (x4) | Release Tags |
-| :------: | :---------------: | :---------: | :----------: |
-| optimize |     159.28 ms     |   29.8623   |      -       |
-|  eigen   |     242.98 ms     |   19.5750   |    3.4.0     |
-| openblas |     151.14 ms     |   31.4691   |    0.3.28    |
-|   gsl    |    7252.10 ms     |   0.6559    |     2.8      |
+|              | Elapsed Time (x4) | GFLOPS (x4) | Release Tags |
+| :----------: | :---------------: | :---------: | :----------: |
+| **optimize** |   **159.28 ms**   | **29.8623** |    **-**     |
+|    eigen     |     242.98 ms     |   19.5750   |    3.4.0     |
+|   openblas   |     151.14 ms     |   31.4691   |    0.3.28    |
+|     gsl      |    7252.10 ms     |   0.6559    |     2.8      |
 
 My gemm outperforms eigen by over 10 GFLOPS and is about 1.6 GFLOPS slower than openblas. Gsl doesn not provide an efficient implementation by default, resulting in very slow speed (but it can utilize other libs as backends for gemm computation if specified during build).
