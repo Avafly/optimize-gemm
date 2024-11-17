@@ -12,10 +12,6 @@ find_package(OpenMP REQUIRED)
 add_executable(mm_naive mm_naive.cpp)
 target_link_libraries(mm_naive OpenMP::OpenMP_CXX)
 
-# naive cache
-add_executable(mm_naive_cache mm_naive_cache.cpp)
-target_link_libraries(mm_naive_cache OpenMP::OpenMP_CXX)
-
 # kernel 4x4
 add_executable(mm_kernel4x4 mm_kernel4x4.cpp)
 target_link_libraries(mm_kernel4x4 OpenMP::OpenMP_CXX)
