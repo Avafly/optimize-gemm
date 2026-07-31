@@ -1,6 +1,6 @@
 # optimize-gemm
 
-[GEMM](https://en.wikipedia.org/wiki/General_matrix_multiply) is crucial in AI inference, since it is the core of computations in many layers such as convolution and Transformer. This repo shows how I optimized GEMM by methods like SIMD registers, blocking, tiling, packing, parallel computing to achieve over **170x** speed up (0.1747 -> 29.8623 GFLOPS) on Raspberry Pi 4 Model B (4GB RAM) using CPU only, reached the performance level of high-performance linear algebra libraries.
+[GEMM](https://en.wikipedia.org/wiki/General_matrix_multiply) is crucial in AI inference, since it is the core of computations in many layers such as convolution and Transformer. This repo shows how I optimized GEMM by methods like SIMD registers, blocking, tiling, packing, parallel computing to achieve over **220x** speed up (0.1747 -> 38.5153 GFLOPS) on Raspberry Pi 4 Model B (4GB RAM) using CPU only, reached the performance level of high-performance linear algebra libraries.
 
 All matrices are row-major and initialized with values from text files, and thus the results should be constant. Once the computation is complete, the sum and elements will print for correctness checks.
 
@@ -34,21 +34,30 @@ The next step is selecting a suitable kernel size. [Cortex-A72](https://develope
 
 The kernel efficiently utilizes registers, but cache usage remained suboptimal. For large matrices, FLOPS [drop significantly](https://en.algorithmica.org/hpc/algorithms/matmul/) due to frequent memory access. This can be addressed with blocking/tiling, which improves cache hit rates by enhancing data locality. Additionally, blocking supports parallel computation very well. Parallelization also improves cache utilization: each core has its own L1 cache and neon registers, while the 1 MB L2 is shared, so all four cores can work out of the same packed block. Furthermore, packing the blocks before computation also can enhance data locality.
 
-After completing above optimizations, [mm_block.cpp](https://github.com/Avafly/optimize-gemm/blob/main/mm_block.cpp) improved performance to 29.8623 GFLOPS with elapsed time of 159.28 ms - a **170x** speedup compared to the naive implementation! @_@
+After completing above optimizations, [mm_block.cpp](https://github.com/Avafly/optimize-gemm/blob/main/mm_block.cpp) improved performance to 29.8623 GFLOPS with elapsed time of 159.28 ms.
 
 <p align="center">
   <img src="https://cdn.jsdelivr.net/gh/Avafly/ImageHostingService@master/uPic/mm_optimize.png" width = "600">
 </p>
 
+### 5. Layout and Scheduling
+
+Blocking cuts the memory traffic, but the packed data gets rebuilt far more often than it needs to be: matrix A is repacked once per column block, and matrix B is packed by a single core before the parallel region even starts. Larger blocks would amortize both, except that they make things worse - the kernel reads packed matrix B with a stride, so the whole block has to stay in L1, and Cortex-A72 only has a 2-way 32 KB L1D.
+
+Packing matrix B into 8-column panels instead of whole blocks removes that stride. Matrices A and B now both reach the kernel as plain sequential streams, which frees the block sizes and lets each matrix be packed just once, outside the loop nest. The gemm then fits in a single parallel region with no barriers, since every thread owns its own rows of matrix C, and the kernel prefetches a few k steps ahead to cover the panel boundaries.
+
+Finally, [mm_optimize.cpp](https://github.com/Avafly/optimize-gemm/blob/main/mm_optimize.cpp) improved performance to 38.5153 GFLOPS with elapsed time of 123.49 ms - a **220x** speedup compared to the naive implementation! @_@
+
 ## Some Linear Algebra Libraries
 
-Most linear algebra libraries provide gemm supports, and I tested against some well-known libraries: [eigen](https://eigen.tuxfamily.org/), [openblas](https://www.openblas.net/), and [gsl](https://www.gnu.org/software/gsl/).
+Most linear algebra libraries provide gemm supports, and I tested against some well-known libraries: [blis](https://github.com/flame/blis), [openblas](https://www.openblas.net/), [eigen](https://eigen.tuxfamily.org/), and [gsl](https://www.gnu.org/software/gsl/).
 
 |              | Elapsed Time (x4) | GFLOPS (x4) | Release Tags |
 | :----------: | :---------------: | :---------: | :----------: |
-| **optimize** |   **159.28 ms**   | **29.8623** |    **-**     |
-|    eigen     |     242.98 ms     |   19.5750   |    3.4.0     |
-|   openblas   |     151.14 ms     |   31.4691   |    0.3.28    |
+| **optimize** |   **123.49 ms**   | **38.5153** |    **-**     |
+|     blis     |     120.21 ms     |   39.5670   |  0.9.0-156   |
+|   openblas   |     151.21 ms     |   31.4546   |    0.3.28    |
+|    eigen     |     238.22 ms     |   19.9660   |    3.4.0     |
 |     gsl      |    7252.10 ms     |   0.6559    |     2.8      |
 
-My gemm outperforms eigen by over 10 GFLOPS and is about 1.6 GFLOPS slower than openblas. Gsl doesn not provide an efficient implementation by default, resulting in very slow speed (but it can utilize other libs as backends for gemm computation if specified during build).
+My gemm outperforms openblas by 7 GFLOPS and eigen by over 18, and is about 1 GFLOPS slower than blis. Gsl does not provide an efficient implementation by default, resulting in very slow speed (but it can utilize other libs as backends for gemm computation if specified during build).
