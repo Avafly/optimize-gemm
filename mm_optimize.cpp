@@ -8,7 +8,9 @@ constexpr int KERNEL_ROW = 12;
 constexpr int KERNEL_COL = 8;
 constexpr int BLOCK_M = 384;
 constexpr int BLOCK_N = 96;
-constexpr int BLOCK_K = 64;
+constexpr int BLOCK_K = 192;
+constexpr int PREFETCH_A = 8 * KERNEL_ROW;
+constexpr int PREFETCH_B = 16 * KERNEL_COL;
 
 #if !defined(M_SIZE) || !defined(N_SIZE) || !defined(K_SIZE)
     #define M_SIZE      1536
@@ -19,8 +21,8 @@ constexpr int BLOCK_K = 64;
 float A[M_SIZE * K_SIZE] __attribute__((aligned(ALIGN_SIZE))) = { 0.0f, };
 float B[K_SIZE * N_SIZE] __attribute__((aligned(ALIGN_SIZE))) = { 0.0f, };
 float C[M_SIZE * N_SIZE] __attribute__((aligned(ALIGN_SIZE))) = { 0.0f, };
-float A_pack[BLOCK_M * K_SIZE] __attribute__((aligned(ALIGN_SIZE))) = { 0.0f, };
-float B_pack[BLOCK_K * BLOCK_N] __attribute__((aligned(ALIGN_SIZE))) = { 0.0f, };
+float A_pack[M_SIZE * K_SIZE] __attribute__((aligned(ALIGN_SIZE))) = { 0.0f, };
+float B_pack[K_SIZE * N_SIZE] __attribute__((aligned(ALIGN_SIZE))) = { 0.0f, };
 
 void Kernel12x8(const float *A, const float *B, float *C,
     const int K, const int lda, const int ldb, const int ldc)
@@ -61,6 +63,9 @@ void Kernel12x8(const float *A, const float *B, float *C,
 
         float32x4_t b0 = vld1q_f32(b_ptr);
         float32x4_t b1 = vld1q_f32(b_ptr + 4);
+
+        __builtin_prefetch(a_ptr + PREFETCH_A);
+        __builtin_prefetch(b_ptr + PREFETCH_B);
 
         c00 = vfmaq_laneq_f32(c00, b0, a0, 0);
         c01 = vfmaq_laneq_f32(c01, b1, a0, 0);
@@ -132,25 +137,33 @@ void Kernel12x8(const float *A, const float *B, float *C,
 void matmul(const float *A, const float *B, float *C,
     const int M, const int N, const int K)
 {
-    for (int m = 0; m < M; m += BLOCK_M)
+    #pragma omp parallel
     {
-        for (int n = 0; n < N; n += BLOCK_N)
+        #pragma omp for schedule(static) nowait
+        for (int i = 0; i < M; i += KERNEL_ROW)
+            PackTrans(&A[i * K], &A_pack[i * K], KERNEL_ROW, K, K);
+        #pragma omp for schedule(static)
+        for (int j = 0; j < N; j += 2 * KERNEL_COL)
+            PackPanel(&B[j], &B_pack[j * K], &B_pack[(j + KERNEL_COL) * K], K, N);
+
+        for (int m = 0; m < M; m += BLOCK_M)
         {
-            for (int k = 0; k < K; k += BLOCK_K)
+            for (int n = 0; n < N; n += BLOCK_N)
             {
-                PackCopy(&B[k * N + n], B_pack, BLOCK_K, BLOCK_N, N);
-                #pragma omp parallel for schedule(static)
-                for (int bm = 0; bm < BLOCK_M; bm += KERNEL_ROW)
+                for (int k = 0; k < K; k += BLOCK_K)
                 {
-                    PackTrans(&A[m * K + k + bm * K], &A_pack[bm * BLOCK_K], KERNEL_ROW, BLOCK_K, K);
-                    for (int bn = 0; bn < BLOCK_N; bn += KERNEL_COL)
+                    #pragma omp for schedule(static) nowait
+                    for (int bm = 0; bm < BLOCK_M; bm += KERNEL_ROW)
                     {
-                        Kernel12x8(
-                            &A_pack[bm * BLOCK_K],
-                            &B_pack[bn],
-                            &C[m * N + n + bm * N + bn],
-                            BLOCK_K, KERNEL_ROW, BLOCK_N, N
-                        );
+                        for (int bn = 0; bn < BLOCK_N; bn += KERNEL_COL)
+                        {
+                            Kernel12x8(
+                                &A_pack[(m + bm) * K + k * KERNEL_ROW],
+                                &B_pack[(n + bn) * K + k * KERNEL_COL],
+                                &C[(m + bm) * N + n + bn],
+                                BLOCK_K, KERNEL_ROW, KERNEL_COL, N
+                            );
+                        }
                     }
                 }
             }
@@ -165,7 +178,7 @@ int main(int argc, char *argv[])
     std::printf("Kernel row = %d, col = %d\n", KERNEL_ROW, KERNEL_COL);
     std::printf("BLOCK M = %d, N = %d, K = %d\n", BLOCK_M, BLOCK_N, BLOCK_K);
     // dim check
-    if (M_SIZE % KERNEL_ROW != 0 || N_SIZE % KERNEL_COL != 0)
+    if (M_SIZE % KERNEL_ROW != 0 || N_SIZE % (2 * KERNEL_COL) != 0)
     {
         std::printf("Error: M and N must be divisible by kernel dims\n");
         return 1;

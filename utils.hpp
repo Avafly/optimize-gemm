@@ -56,9 +56,9 @@ inline void PackTrans(
 )
 {
     constexpr int stride = 4;
-    for (int i = 0; i <= row - stride; i += stride)
+    for (int j = 0; j <= col - stride; j += stride)
     {
-        for (int j = 0; j <= col - stride; j += stride)
+        for (int i = 0; i <= row - stride; i += stride)
         {
             Trans4x4(
                 out + j * row + i,
@@ -81,6 +81,23 @@ inline void PackCopy(
         std::memcpy(out_ptr, in_ptr, col * sizeof(float));
         in_ptr += ld;
         out_ptr += col;
+    }
+}
+
+inline void PackPanel(
+    const float *in, float *out0, float *out1, const int len, const int ld
+)
+{
+    constexpr int width = 8;
+    for (int k = 0; k < len; ++k)
+    {
+        vst1q_f32(out0, vld1q_f32(in));
+        vst1q_f32(out0 + 4, vld1q_f32(in + 4));
+        vst1q_f32(out1, vld1q_f32(in + 8));
+        vst1q_f32(out1 + 4, vld1q_f32(in + 12));
+        out0 += width;
+        out1 += width;
+        in += ld;
     }
 }
 
