@@ -20,6 +20,10 @@ target_link_libraries(mm_kernel4x4 OpenMP::OpenMP_CXX)
 add_executable(mm_kernel12x8 mm_kernel12x8.cpp)
 target_link_libraries(mm_kernel12x8 OpenMP::OpenMP_CXX)
 
+# blocking
+add_executable(mm_block mm_block.cpp)
+target_link_libraries(mm_block OpenMP::OpenMP_CXX)
+
 # optimize
 add_executable(mm_optimize mm_optimize.cpp)
 target_link_libraries(mm_optimize OpenMP::OpenMP_CXX)

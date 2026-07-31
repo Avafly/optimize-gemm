@@ -30,11 +30,11 @@ The next step is selecting a suitable kernel size. [Cortex-A72](https://develope
 
 [mm_kernel12x8.cpp](https://github.com/Avafly/optimize-gemm/blob/main/mm_kernel12x8.cpp) improved performance to 5.5944 GFLOPS with elapsed time of 850.19 ms.
 
-### 4. Further
+### 4. Blocking and Packing
 
-The kernel efficiently utilizes registers, but cache usage remained suboptimal. For large matrices, FLOPS [drop significantly](https://en.algorithmica.org/hpc/algorithms/matmul/) due to frequent memory access. This can be addressed with blocking/tiling, which improves cache hit rates by enhancing data locality. Additionally, blocking supports parallel computation very well. Parallelization improves cache and neon register utilization since each core has its own cache and registers. Furthermore, packing the blocks before computation also can enhance data locality.
+The kernel efficiently utilizes registers, but cache usage remained suboptimal. For large matrices, FLOPS [drop significantly](https://en.algorithmica.org/hpc/algorithms/matmul/) due to frequent memory access. This can be addressed with blocking/tiling, which improves cache hit rates by enhancing data locality. Additionally, blocking supports parallel computation very well. Parallelization also improves cache utilization: each core has its own L1 cache and neon registers, while the 1 MB L2 is shared, so all four cores can work out of the same packed block. Furthermore, packing the blocks before computation also can enhance data locality.
 
-After completing above optimizations, [mm_optimize.cpp](https://github.com/Avafly/optimize-gemm/blob/main/mm_optimize.cpp) improved performance to 29.8623 GFLOPS with elapsed time of 159.28 ms - a **170x** speedup compared to the naive implementation! @_@
+After completing above optimizations, [mm_block.cpp](https://github.com/Avafly/optimize-gemm/blob/main/mm_block.cpp) improved performance to 29.8623 GFLOPS with elapsed time of 159.28 ms - a **170x** speedup compared to the naive implementation! @_@
 
 <p align="center">
   <img src="https://cdn.jsdelivr.net/gh/Avafly/ImageHostingService@master/uPic/mm_optimize.png" width = "600">
