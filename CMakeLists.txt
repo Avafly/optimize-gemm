@@ -33,6 +33,9 @@ set(GSL_INCLUDE_DIR "${ENV_ROOT}/gsl/include")
 set(GSL_LIB_DIR "${ENV_ROOT}/gsl/lib")
 # eigen
 set(EIGEN_INCLUDE_DIR "${ENV_ROOT}/eigen/include/eigen3")
+# blis
+set(BLIS_INCLUDE_DIR "${ENV_ROOT}/blis/include")
+set(BLIS_LIB_DIR "${ENV_ROOT}/blis/lib")
 
 # openblas
 add_executable(mm_blas mm_blas.cpp)
@@ -50,3 +53,9 @@ add_executable(mm_gsl mm_gsl.cpp)
 target_include_directories(mm_gsl PRIVATE ${GSL_INCLUDE_DIR})
 target_link_directories(mm_gsl PRIVATE ${GSL_LIB_DIR})
 target_link_libraries(mm_gsl -lgsl -lgslcblas OpenMP::OpenMP_CXX -lm)
+
+# blis
+add_executable(mm_blis mm_blis.cpp)
+target_include_directories(mm_blis PRIVATE ${BLIS_INCLUDE_DIR})
+target_link_directories(mm_blis PRIVATE ${BLIS_LIB_DIR})
+target_link_libraries(mm_blis -lblis OpenMP::OpenMP_CXX -lpthread -lm)
