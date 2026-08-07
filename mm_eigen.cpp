@@ -29,6 +29,7 @@ int main(int argc, char *argv[])
 {
     constexpr size_t FLOPs = 2 * static_cast<size_t>(M_SIZE) * static_cast<size_t>(N_SIZE) * static_cast<size_t>(K_SIZE);
     std::printf("M = %d, N = %d, K = %d, FLOPs = %zu\n", M_SIZE, N_SIZE, K_SIZE, FLOPs);
+    std::printf("Threads: %d\n", Eigen::nbThreads());
     // load array
     if (LoadArray("../data/arr1.txt", A, M_SIZE * K_SIZE) == false ||
         LoadArray("../data/arr2.txt", B, K_SIZE * N_SIZE) == false)

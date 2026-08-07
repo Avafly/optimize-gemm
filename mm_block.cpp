@@ -164,6 +164,7 @@ int main(int argc, char *argv[])
     std::printf("M = %d, N = %d, K = %d, FLOPs = %zu\n", M_SIZE, N_SIZE, K_SIZE, FLOPs);
     std::printf("Kernel row = %d, col = %d\n", KERNEL_ROW, KERNEL_COL);
     std::printf("BLOCK M = %d, N = %d, K = %d\n", BLOCK_M, BLOCK_N, BLOCK_K);
+    std::printf("Threads: %d\n", omp_get_max_threads());
     // dim check
     if (M_SIZE % KERNEL_ROW != 0 || N_SIZE % KERNEL_COL != 0)
     {
